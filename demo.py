@@ -78,7 +78,7 @@ def infer_fast(net, img, net_input_height_size, stride, upsample_ratio, cpu,
     return heatmaps, pafs, scale, pad
 
 
-def run_demo(net, image_provider, height_size, cpu, track_ids):
+def run_demo(net, image_provider, height_size, cpu, track_ids, out):
     net = net.eval()
     if not cpu:
         net = net.cuda()
@@ -111,7 +111,7 @@ def run_demo(net, image_provider, height_size, cpu, track_ids):
                     pose_keypoints[kpt_id, 1] = int(all_keypoints[int(pose_entries[n][kpt_id]), 1])
             pose = Pose(pose_keypoints, pose_entries[n][18])
             current_poses.append(pose)
-            pose.draw(img)
+            # pose.draw(img)
 
         img = cv2.addWeighted(orig_img, 0.6, img, 0.4, 0)
         if track_ids == True:
@@ -119,10 +119,11 @@ def run_demo(net, image_provider, height_size, cpu, track_ids):
             previous_poses = current_poses
             for pose in current_poses:
                 cv2.rectangle(img, (pose.bbox[0], pose.bbox[1]),
-                              (pose.bbox[0] + pose.bbox[2], pose.bbox[1] + pose.bbox[3]), (0, 255, 0))
-                cv2.putText(img, 'id: {}'.format(pose.id), (pose.bbox[0], pose.bbox[1] - 16),
-                            cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255))
-        cv2.imshow('Lightweight Human Pose Estimation Python Demo', img)
+                              (pose.bbox[0] + pose.bbox[2], pose.bbox[1] + pose.bbox[3]), (0, 255, 0), 2)
+                # cv2.putText(img, 'id: {}'.format(pose.id), (pose.bbox[0], pose.bbox[1] - 16),
+                #             cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255))
+        cv2.imshow('Lightweight Human Pose Estimation Python Demo', cv2.resize(img, (1024, 576)))
+        out.write(img)
         key = cv2.waitKey(33)
         if key == 27:  # esc
             return
@@ -149,7 +150,15 @@ if __name__ == '__main__':
     load_state(net, checkpoint)
 
     frame_provider = ImageReader(args.images)
+    vid = cv2.VideoCapture(args.video)
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    _, frame = vid.read()
+    vw, vh = frame.shape[1], frame.shape[0]
+    print("Video size", vw, vh)
+    out = cv2.VideoWriter('data/v2.mp4', fourcc, 27.0, (vw, vh))
     if args.video != '':
         frame_provider = VideoReader(args.video)
 
-    run_demo(net, frame_provider, args.height_size, args.cpu, args.track_ids)
+    run_demo(net, frame_provider, args.height_size, args.cpu, args.track_ids, out)
+    out.release()
+    cv2.destroyAllWindows()
